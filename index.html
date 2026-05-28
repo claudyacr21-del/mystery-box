@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mystery Box</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="shortcut icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -409,7 +412,7 @@
             .winners-panel { max-width: 560px; margin: 0 auto 24px; }
         }
 
-        @media (max-width: 100px) {
+        @media (max-width: 560px) {
             body { padding: 14px; }
             .title { font-size: 1.8rem; }
             .mystery-box { width: 200px; height: 200px; }
@@ -625,7 +628,7 @@
         function startWinnerAutoRandom() {
             if (winnerTimer) clearTimeout(winnerTimer);
             const loop = () => {
-                const delay = Math.floor(4000 + Math.random() * 1000); // 3-4 detik
+                const delay = Math.floor(3000 + Math.random() * 1000); // 3-4 detik
                 winnerTimer = setTimeout(() => {
                     pushWinner(createWinner());
                     loop();
@@ -635,15 +638,15 @@
         }
 
         async function loadWinnersFromAppsScript() {
-            // Optional: kalau Apps Script lu nanti punya action=winners, table ini bisa ambil data asli.
-            // Kalau belum ada, otomatis pakai random auto seperti request lu.
+            // Apps Script lu pakai action=list.
+            // Kalau Google Sheet kosong/error, random winners yang sudah muncul tetap dipakai.
             try {
-                const url = API_URL + '?action=winners&t=' + Date.now();
+                const url = API_URL + '?action=list&t=' + Date.now();
                 const response = await fetch(url);
                 const result = await response.json();
-                const rows = Array.isArray(result.winners) ? result.winners : Array.isArray(result.data) ? result.data : [];
+                const rows = Array.isArray(result.data) ? result.data : Array.isArray(result.winners) ? result.winners : [];
 
-                if (rows.length) {
+                if (rows.length > 0) {
                     winners = rows.slice(0, 40).map(row => createWinner(
                         row.userId || row.userid || row.id || getRandomUserId(),
                         row.prize || row.amount || row.hadiah || getRandomPrize(),
@@ -652,7 +655,7 @@
                     renderWinners();
                 }
             } catch (error) {
-                console.log('Winner list pakai mode random karena action=winners belum tersedia.', error);
+                console.log('Google Sheet gagal/kosong, random winners tetap dipakai.', error);
             }
         }
 
@@ -708,8 +711,27 @@
             return await response.json();
         }
 
+        async function getClientIp() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                return data.ip || 'N/A';
+            } catch (error) {
+                console.error('Gagal mengambil IP user:', error);
+                return 'N/A';
+            }
+        }
+
         async function saveClaim(userId, prize) {
-            const url = API_URL + '?action=claim&userId=' + encodeURIComponent(userId) + '&prize=' + prize + '&t=' + Date.now();
+            const ip = await getClientIp();
+
+            const url = API_URL
+                + '?action=claim'
+                + '&userId=' + encodeURIComponent(userId)
+                + '&prize=' + encodeURIComponent(prize)
+                + '&ip=' + encodeURIComponent(ip)
+                + '&t=' + Date.now();
+
             const response = await fetch(url);
             return await response.json();
         }
